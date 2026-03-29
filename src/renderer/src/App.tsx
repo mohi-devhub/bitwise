@@ -15,6 +15,16 @@ interface OpenFile {
   name: string
 }
 
+interface CodeLock {
+  id: string
+  filePath: string
+  memberId: string
+  memberName: string
+  startLine: number
+  endLine: number
+  assignedAt: number
+}
+
 interface RecentProject {
   path: string
   name: string
@@ -37,6 +47,7 @@ export default function App() {
   const [terminalOpen, setTerminalOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const [diffViewerOpen, setDiffViewerOpen] = useState(false)
+  const [lockPanelOpen, setLockPanelOpen] = useState(false)
   const [collaborativeModalOpen, setCollaborativeModalOpen] = useState(false)
   const [roomId, setRoomId] = useState<string | null>(null)
   const [userName, setUserName] = useState<string>('User')
@@ -45,6 +56,10 @@ export default function App() {
   const [roomUsers, setRoomUsers] = useState<{ id: string; name: string }[]>([])
   const [activeView, setActiveView] = useState<'code' | 'canvas'>('code')
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([])
+  const [locks, setLocks] = useState<CodeLock[]>([])
+  const [mySocketId, setMySocketId] = useState<string | null>(null)
+  const [isHost, setIsHost] = useState(false)
+  const [lockAccessNotice, setLockAccessNotice] = useState<string>('')
 
   useEffect(() => {
     const saved = localStorage.getItem('recentProjects')
@@ -83,6 +98,33 @@ export default function App() {
     return () => {
       unsubscribeJoined()
       unsubscribeLeft()
+    }
+  }, [roomId])
+
+  // ── Lock state ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!roomId || !window.api.collab) return
+
+    // These are synchronously set by the 'room-joined' event during connect()
+    setMySocketId(window.api.collab.getMySocketId())
+    setIsHost(window.api.collab.getIsHost())
+    setLocks(window.api.collab.getInitialLocks())
+    window.api.collab.getLocks(roomId).then((currentLocks) => setLocks(currentLocks))
+
+    const unsubAssigned = window.api.collab.onLockAssigned((lock: CodeLock) => {
+      setLocks((prev) => {
+        if (prev.some((existing) => existing.id === lock.id)) return prev
+        return [...prev, lock]
+      })
+    })
+
+    const unsubRemoved = window.api.collab.onLockRemoved(({ lockId }: { lockId: string }) => {
+      setLocks((prev) => prev.filter((l) => l.id !== lockId))
+    })
+
+    return () => {
+      unsubAssigned()
+      unsubRemoved()
     }
   }, [roomId])
 
@@ -135,8 +177,37 @@ export default function App() {
   }
 
   const activeFile = activeFileIndex >= 0 ? openFiles[activeFileIndex] : null
+  const myAssignedLocks = locks.filter((lock) => lock.memberId === mySocketId)
+  const assignedFilePaths = new Set(myAssignedLocks.map((lock) => lock.filePath))
+
+  useEffect(() => {
+    if (!roomId || isHost) return
+    if (myAssignedLocks.length === 0) return
+
+    setOpenFiles((prev) => {
+      const filtered = prev.filter((file) => assignedFilePaths.has(file.path))
+
+      setActiveFileIndex((prevIndex) => {
+        if (filtered.length === 0) return -1
+        if (prevIndex < 0) return 0
+
+        const prevFile = prev[prevIndex]
+        if (!prevFile) return 0
+
+        const nextIndex = filtered.findIndex((file) => file.path === prevFile.path)
+        return nextIndex === -1 ? 0 : nextIndex
+      })
+
+      return filtered
+    })
+  }, [roomId, isHost, myAssignedLocks.length, mySocketId, locks])
 
   const handleFileClick = (path: string, name: string) => {
+    if (roomId && !isHost && myAssignedLocks.length > 0 && !assignedFilePaths.has(path)) {
+      setLockAccessNotice('You can only open files assigned to you by the host')
+      return
+    }
+
     const existingIndex = openFiles.findIndex((f) => f.path === path)
     if (existingIndex >= 0) {
       setActiveFileIndex(existingIndex)
@@ -155,6 +226,16 @@ export default function App() {
       setActiveFileIndex(activeFileIndex - 1)
     }
   }
+
+  useEffect(() => {
+    setLockPanelOpen(false)
+  }, [activeFile?.path, roomId])
+
+  useEffect(() => {
+    if (!lockAccessNotice) return
+    const timer = setTimeout(() => setLockAccessNotice(''), 2200)
+    return () => clearTimeout(timer)
+  }, [lockAccessNotice])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -221,9 +302,16 @@ export default function App() {
           isCollaborative={!!roomId}
           onFileClick={handleFileClick}
           onDiffViewerClick={() => setDiffViewerOpen(true)}
+          onCodeLocksClick={() => setLockPanelOpen((prev) => !prev)}
         />
 
         <div className="flex-1 flex flex-col gap-4 overflow-hidden relative">
+          {lockAccessNotice && (
+            <div className="absolute z-20 top-2 left-2 right-2 px-3 py-2 rounded-lg border border-amber-400/40 bg-amber-500/10 text-amber-200 text-xs">
+              {lockAccessNotice}
+            </div>
+          )}
+
           {/* ✅ EDITOR VIEW - Hidden via CSS when not active */}
           <div
             className={`flex-1 flex-col overflow-hidden ${activeView === 'code' ? 'flex' : 'hidden'}`}
@@ -261,6 +349,11 @@ export default function App() {
                   openFile={activeFile}
                   roomId={roomId}
                   userName={userName}
+                  locks={locks}
+                  mySocketId={mySocketId}
+                  isHost={isHost}
+                  roomUsers={roomUsers}
+                  lockPanelOpen={lockPanelOpen}
                 />
               ) : (
                 <div className="flex-1 w-full h-full overflow-hidden bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl flex items-center justify-center">

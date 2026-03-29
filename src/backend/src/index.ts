@@ -7,6 +7,7 @@ import fs from "fs";
 import { config } from "./config";
 import { getDb, closeDb } from "./db/connection";
 import { runMigrations } from "./db/schema";
+import "./sockets/server";
 
 async function main() {
   console.log(`[boot] Starting Bitwise backend (${config.nodeEnv})`);

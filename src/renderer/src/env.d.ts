@@ -20,6 +20,16 @@ interface FileChange {
   lineChanges: { line: number; type: 'add' | 'remove' | 'modify'; content: string }[]
 }
 
+interface CodeLock {
+  id: string
+  filePath: string
+  memberId: string
+  memberName: string
+  startLine: number
+  endLine: number
+  assignedAt: number
+}
+
 interface Window {
   api: {
     dialog: {
@@ -76,6 +86,22 @@ interface Window {
         callback: (data: { filePath: string; assigneeId: string; assigneeName: string }) => void
       ) => () => void
       isConnected: () => boolean
+      getMySocketId: () => string | null
+      getIsHost: () => boolean
+      getInitialLocks: () => CodeLock[]
+      assignLock: (
+        roomId: string,
+        filePath: string,
+        memberId: string,
+        memberName: string,
+        startLine: number,
+        endLine: number
+      ) => Promise<{ lock: CodeLock } | null>
+      removeLock: (roomId: string, lockId: string) => Promise<boolean>
+      getLocks: (roomId: string) => Promise<CodeLock[]>
+      onLockAssigned: (callback: (lock: CodeLock) => void) => () => void
+      onLockRemoved: (callback: (data: { lockId: string }) => void) => () => void
+      onLockViolation: (callback: (data: { filePath: string; message: string }) => void) => () => void
     }
   }
   electron: {

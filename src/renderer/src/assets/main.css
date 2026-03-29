@@ -18,3 +18,23 @@ body {
   height: 100vh;
   width: 100vw;
 }
+
+.code-lock-range--mine {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.22), rgba(16, 185, 129, 0.08));
+  border-left: 2px solid rgba(16, 185, 129, 0.75);
+}
+
+.code-lock-range--others {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.22), rgba(239, 68, 68, 0.08));
+  border-left: 2px solid rgba(239, 68, 68, 0.75);
+}
+
+.code-lock-glyph--mine {
+  background-color: rgba(16, 185, 129, 0.8);
+  border-radius: 999px;
+}
+
+.code-lock-glyph--others {
+  background-color: rgba(239, 68, 68, 0.8);
+  border-radius: 999px;
+}
