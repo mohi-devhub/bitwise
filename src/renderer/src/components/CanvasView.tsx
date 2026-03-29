@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { MousePointer2, Pencil, Square, Circle, Minus, Type, Layers, Trash2, Download } from 'lucide-react'
+import { MousePointer2, Pencil, Square, Circle, Minus, Type, Layers, Trash2, Download, Bot } from 'lucide-react'
 import { io, Socket } from 'socket.io-client'
 
 const SHAPE_TOOLS   = ['Square', 'Circle', 'Minus']
 const DRAWING_TOOLS = ['Pencil', 'Square', 'Circle', 'Minus']
 const COLORS = ['#ffffff', '#ff4d4f', '#ffa940', '#fadb14', '#73d13d', '#40a9ff', '#9254de']
 
-export const CanvasView = ({ roomId = 'hackathon-room', userName = 'Dev', isActive = true }) => {
+interface CanvasViewProps {
+  roomId?: string
+  userName?: string
+  isActive?: boolean
+}
+
+export const CanvasView = ({ roomId = 'hackathon-room', userName = 'Dev', isActive = true }: CanvasViewProps) => {
   const canvasRef      = useRef<HTMLCanvasElement>(null)
   const gridRef        = useRef<HTMLDivElement>(null)
   const socketRef      = useRef<Socket | null>(null)
@@ -347,6 +353,29 @@ export const CanvasView = ({ roomId = 'hackathon-room', userName = 'Dev', isActi
     document.body.removeChild(a)
   }
 
+  const handleVlmAnalysis = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const drawings = drawingsRef.current.map((drawing) => ({
+      id: drawing.id,
+      tool: drawing.tool,
+      x0: drawing.x0,
+      y0: drawing.y0,
+      x1: drawing.x1,
+      y1: drawing.y1,
+      text: drawing.text,
+      color: drawing.color
+    }))
+
+    const imageDataUrl = canvas.toDataURL('image/png')
+    window.dispatchEvent(
+      new CustomEvent('vlm-analysis-requested', {
+        detail: { imageDataUrl, roomId, drawings }
+      })
+    )
+  }
+
   const saveText = () => {
     if (textInput) {
       if (textInput.text.trim()) {
@@ -569,6 +598,14 @@ export const CanvasView = ({ roomId = 'hackathon-room', userName = 'Dev', isActi
               <tool.icon size={18} strokeWidth={activeTool === tool.name ? 2.5 : 2} />
             </button>
           ))}
+
+          <button
+            onClick={handleVlmAnalysis}
+            className="p-2.5 rounded-xl transition-all text-cyan-300 hover:text-white hover:bg-cyan-500/70"
+            title="Run VLM Analysis"
+          >
+            <Bot size={18} strokeWidth={2} />
+          </button>
 
           <div className="w-full h-px bg-border my-1 opacity-50" />
 

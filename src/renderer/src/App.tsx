@@ -8,7 +8,14 @@ import { Terminal } from './components/Terminal'
 import { CollaborativeModal } from './components/CollaborativeModal'
 import { ChatView } from './components/ChatView'
 import { DiffViewer } from './components/DiffViewer'
+import { VlmAnalysisModal } from './components/VlmAnalysisModal'
 import { X } from 'lucide-react'
+import {
+  analyzeCanvasToCode,
+  initializeSimpleVlm,
+  type VlmAnalysisRequest,
+  type VlmAnalysisResult
+} from './lib/simpleVlm'
 
 interface OpenFile {
   path: string
@@ -60,6 +67,10 @@ export default function App() {
   const [mySocketId, setMySocketId] = useState<string | null>(null)
   const [isHost, setIsHost] = useState(false)
   const [lockAccessNotice, setLockAccessNotice] = useState<string>('')
+  const [vlmModalOpen, setVlmModalOpen] = useState(false)
+  const [vlmLoading, setVlmLoading] = useState(false)
+  const [vlmError, setVlmError] = useState('')
+  const [vlmResult, setVlmResult] = useState<VlmAnalysisResult | null>(null)
 
   useEffect(() => {
     const saved = localStorage.getItem('recentProjects')
@@ -256,6 +267,31 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  useEffect(() => {
+    const handleVlmAnalysis = async (event: Event) => {
+      const customEvent = event as CustomEvent<VlmAnalysisRequest>
+      if (!customEvent.detail) return
+
+      setVlmModalOpen(true)
+      setVlmLoading(true)
+      setVlmError('')
+      setVlmResult(null)
+
+      try {
+        await initializeSimpleVlm()
+        const result = await analyzeCanvasToCode(customEvent.detail)
+        setVlmResult(result)
+      } catch (error) {
+        setVlmError(error instanceof Error ? error.message : 'Failed to run VLM analysis')
+      } finally {
+        setVlmLoading(false)
+      }
+    }
+
+    window.addEventListener('vlm-analysis-requested', handleVlmAnalysis)
+    return () => window.removeEventListener('vlm-analysis-requested', handleVlmAnalysis)
+  }, [])
+
   const handleEnterIde = (path?: string) => {
     if (path) {
       setProjectPath(path)
@@ -406,6 +442,14 @@ export default function App() {
           setRoomId(id)
           setUserName(name)
         }}
+      />
+
+      <VlmAnalysisModal
+        isOpen={vlmModalOpen}
+        isLoading={vlmLoading}
+        result={vlmResult}
+        error={vlmError}
+        onClose={() => setVlmModalOpen(false)}
       />
     </div>
   )
