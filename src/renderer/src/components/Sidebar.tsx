@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronDown, X, ChevronRight, FileDiff } from 'lucide-react'
+import { ChevronDown, X, ChevronRight, FileDiff, Lock } from 'lucide-react'
 
 interface FileEntry {
   name: string
@@ -18,6 +18,7 @@ export interface SidebarProps {
   isCollaborative?: boolean
   onFileClick?: (path: string, name: string) => void
   onDiffViewerClick?: () => void
+  onCodeLocksClick?: () => void
 }
 
 export const Sidebar = ({
@@ -27,7 +28,8 @@ export const Sidebar = ({
   sharedFileTree,
   isCollaborative = false,
   onFileClick,
-  onDiffViewerClick
+  onDiffViewerClick,
+  onCodeLocksClick
 }: SidebarProps) => {
   const [files, setFiles] = useState<FileEntry[]>([])
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
@@ -159,13 +161,23 @@ export const Sidebar = ({
         )}
       </div>
 
-      <button
-        onClick={onDiffViewerClick}
-        className="flex items-center space-x-2 w-full px-3 py-2 mt-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors border-t border-[#2a2a2a]"
-      >
-        <FileDiff size={14} />
-        <span>Diff Viewer</span>
-      </button>
+      <div className="mt-2 pt-2 border-t border-[#2a2a2a] grid grid-cols-2 gap-2">
+        <button
+          onClick={onDiffViewerClick}
+          className="flex items-center justify-center space-x-2 w-full px-3 py-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"
+        >
+          <FileDiff size={14} />
+          <span>Diff Viewer</span>
+        </button>
+
+        <button
+          onClick={onCodeLocksClick}
+          className="flex items-center justify-center space-x-2 w-full px-3 py-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"
+        >
+          <Lock size={14} />
+          <span>Code Locks</span>
+        </button>
+      </div>
     </div>
   )
 }
