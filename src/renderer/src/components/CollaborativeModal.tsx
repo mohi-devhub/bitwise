@@ -4,7 +4,7 @@ import { X, Copy, Check, Users, Shield, UserPlus } from 'lucide-react'
 interface CollaborativeModalProps {
   onClose: () => void
   isOpen: boolean
-  onRoomJoined?: (roomId: string) => void
+  onRoomJoined?: (roomId: string, userName: string) => void
 }
 
 export const CollaborativeModal = ({ onClose, isOpen, onRoomJoined }: CollaborativeModalProps) => {
@@ -29,7 +29,7 @@ export const CollaborativeModal = ({ onClose, isOpen, onRoomJoined }: Collaborat
 
     if (window.api.collab) {
       await window.api.collab.connect(code, userName)
-      onRoomJoined?.(code)
+      onRoomJoined?.(code, userName)
     }
   }
 
@@ -49,7 +49,7 @@ export const CollaborativeModal = ({ onClose, isOpen, onRoomJoined }: Collaborat
     if (window.api.collab) {
       await window.api.collab.connect(code, userName)
       setRoomCode(code)
-      onRoomJoined?.(code)
+      onRoomJoined?.(code, userName)
     }
   }
 

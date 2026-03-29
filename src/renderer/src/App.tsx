@@ -100,8 +100,27 @@ export default function App() {
   useEffect(() => {
     if (!projectPath || !roomId || !window.api.collab) return
 
+    const shareAllFiles = async (entries: any[]) => {
+      for (const entry of entries) {
+        if (entry.isDirectory && entry.children) {
+          await shareAllFiles(entry.children)
+        } else {
+          try {
+            const result = await window.api.fs.readFile(entry.path)
+            if (result.success && result.content) {
+              const content = atob(result.content)
+              window.api.collab.sendFileContent(roomId, entry.path, content)
+            }
+          } catch (e) {
+            console.error('Error reading file:', entry.path, e)
+          }
+        }
+      }
+    }
+
     window.api.fs.readDirectory(projectPath).then((entries) => {
       window.api.collab.shareProject(roomId, projectPath, entries)
+      shareAllFiles(entries)
     })
   }, [projectPath, roomId])
 
@@ -204,53 +223,60 @@ export default function App() {
           onDiffViewerClick={() => setDiffViewerOpen(true)}
         />
 
-        <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-          {activeView === 'code' ? (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {openFiles.length > 0 && (
-                <div className="flex items-center bg-[#0d0d0d] border border-[#2a2a2a] rounded-t-xl border-b-0">
-                  {openFiles.map((file, index) => (
-                    <button
-                      key={file.path}
-                      onClick={() => setActiveFileIndex(index)}
-                      className={`flex items-center space-x-2 px-4 py-2 text-xs border-r border-[#2a2a2a] transition-colors ${
-                        index === activeFileIndex
-                          ? 'bg-[#1a1a1a] text-white'
-                          : 'text-gray-500 hover:text-gray-300 hover:bg-[#151515]'
-                      }`}
+        <div className="flex-1 flex flex-col gap-4 overflow-hidden relative">
+          {/* ✅ EDITOR VIEW - Hidden via CSS when not active */}
+          <div
+            className={`flex-1 flex-col overflow-hidden ${activeView === 'code' ? 'flex' : 'hidden'}`}
+          >
+            {openFiles.length > 0 && (
+              <div className="flex items-center bg-[#0d0d0d] border border-[#2a2a2a] rounded-t-xl border-b-0">
+                {openFiles.map((file, index) => (
+                  <button
+                    key={file.path}
+                    onClick={() => setActiveFileIndex(index)}
+                    className={`flex items-center space-x-2 px-4 py-2 text-xs border-r border-[#2a2a2a] transition-colors ${
+                      index === activeFileIndex
+                        ? 'bg-[#1a1a1a] text-white'
+                        : 'text-gray-500 hover:text-gray-300 hover:bg-[#151515]'
+                    }`}
+                  >
+                    <span>{file.name}</span>
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCloseFile(index)
+                      }}
+                      className="pl-3 hover:text-red-500"
                     >
-                      <span>{file.name}</span>
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleCloseFile(index)
-                        }}
-                        className="pl-3 hover:text-red-500"
-                      >
-                        <X size={12} />
-                      </span>
-                    </button>
-                  ))}
+                      <X size={12} />
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex-1 overflow-hidden">
+              {activeFile ? (
+                <CodeEditor
+                  projectPath={projectPath}
+                  openFile={activeFile}
+                  roomId={roomId}
+                  userName={userName}
+                />
+              ) : (
+                <div className="flex-1 w-full h-full overflow-hidden bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl flex items-center justify-center">
+                  <p className="text-gray-500">Select a file from the sidebar to edit</p>
                 </div>
               )}
-              <div className="flex-1 overflow-hidden">
-                {activeFile ? (
-                  <CodeEditor
-                    projectPath={projectPath}
-                    openFile={activeFile}
-                    roomId={roomId}
-                    userName={userName}
-                  />
-                ) : (
-                  <div className="flex-1 w-full h-full overflow-hidden bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl flex items-center justify-center">
-                    <p className="text-gray-500">Select a file from the sidebar to edit</p>
-                  </div>
-                )}
-              </div>
             </div>
-          ) : (
+          </div>
+
+          {/* ✅ CANVAS VIEW - Hidden via CSS when not active */}
+          <div
+            className={`flex-1 w-full h-full overflow-hidden ${activeView === 'canvas' ? 'block' : 'hidden'}`}
+          >
             <CanvasView />
-          )}
+          </div>
+
           <Terminal
             onClose={() => setTerminalOpen(false)}
             isOpen={terminalOpen}
@@ -279,7 +305,10 @@ export default function App() {
       <CollaborativeModal
         onClose={() => setCollaborativeModalOpen(false)}
         isOpen={collaborativeModalOpen}
-        onRoomJoined={(id) => setRoomId(id)}
+        onRoomJoined={(id, name) => {
+          setRoomId(id)
+          setUserName(name)
+        }}
       />
     </div>
   )
