@@ -6,7 +6,7 @@ const SHAPE_TOOLS   = ['Square', 'Circle', 'Minus']
 const DRAWING_TOOLS = ['Pencil', 'Square', 'Circle', 'Minus']
 const COLORS = ['#ffffff', '#ff4d4f', '#ffa940', '#fadb14', '#73d13d', '#40a9ff', '#9254de']
 
-export const CanvasView = ({ roomId = 'hackathon-room', userName = 'Dev' }) => {
+export const CanvasView = ({ roomId = 'hackathon-room', userName = 'Dev', isActive = true }) => {
   const canvasRef      = useRef<HTMLCanvasElement>(null)
   const gridRef        = useRef<HTMLDivElement>(null)
   const socketRef      = useRef<Socket | null>(null)
@@ -33,6 +33,26 @@ export const CanvasView = ({ roomId = 'hackathon-room', userName = 'Dev' }) => {
   
   // Track the object currently being dragged (now stores the original state for Undo tracking)
   const [draggingObject, setDraggingObject] = useState<{ id: string; offsetX: number; offsetY: number, originalObj: any } | null>(null)
+
+  const resizeCanvasToContainer = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const nextWidth = canvas.offsetWidth
+    const nextHeight = canvas.offsetHeight
+
+    // Skip hidden states to avoid collapsing the drawing surface to 0x0.
+    if (nextWidth === 0 || nextHeight === 0) return
+
+    if (canvas.width === nextWidth && canvas.height === nextHeight) {
+      renderFrame()
+      return
+    }
+
+    canvas.width = nextWidth
+    canvas.height = nextHeight
+    renderFrame()
+  }
 
   const setTool = (tool: string) => {
     setActiveTool(tool)
@@ -260,13 +280,9 @@ export const CanvasView = ({ roomId = 'hackathon-room', userName = 'Dev' }) => {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const setSize = () => {
-      canvas.width  = canvas.offsetWidth
-      canvas.height = canvas.offsetHeight
-      renderFrame()
-    }
-    setSize()
-    const observer = new ResizeObserver(setSize)
+
+    resizeCanvasToContainer()
+    const observer = new ResizeObserver(() => resizeCanvasToContainer())
     observer.observe(canvas)
 
     const handleWheel = (e: WheelEvent) => {
@@ -288,6 +304,19 @@ export const CanvasView = ({ roomId = 'hackathon-room', userName = 'Dev' }) => {
       canvas.removeEventListener('wheel', handleWheel)
     }
   }, [])
+
+  useEffect(() => {
+    if (!isActive) return
+
+    // Wait until the view becomes visible, then restore canvas size and redraw.
+    const rafId = window.requestAnimationFrame(() => {
+      resizeCanvasToContainer()
+      updateGrid()
+      renderFrame()
+    })
+
+    return () => window.cancelAnimationFrame(rafId)
+  }, [isActive])
 
   // --- ACTIONS ---
   const handleClearCanvas = () => {

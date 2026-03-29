@@ -367,7 +367,11 @@ export default function App() {
           <div
             className={`flex-1 w-full h-full overflow-hidden ${activeView === 'canvas' ? 'block' : 'hidden'}`}
           >
-            <CanvasView />
+            <CanvasView
+              roomId={roomId ?? 'hackathon-room'}
+              userName={userName}
+              isActive={activeView === 'canvas'}
+            />
           </div>
 
           <Terminal
