@@ -151,7 +151,7 @@ export default function App() {
             const result = await window.api.fs.readFile(entry.path)
             if (result.success && result.content) {
               const content = atob(result.content)
-              window.api.collab.sendFileContent(roomId, entry.path, content)
+                ;(window.api.collab as any).sendFileContent?.(roomId, entry.path, content)
             }
           } catch (e) {
             console.error('Error reading file:', entry.path, e)
